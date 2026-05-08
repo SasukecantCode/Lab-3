@@ -1,0 +1,11 @@
+Project 1 (desk calculator)
+- Added ternary operator codegen with unique labels and a dedicated temp slot at address 1.
+- Reserved address 1 for ternary temp by starting user variable allocation at 2 (address 0 remains scratch for unary minus).
+- Kept lexer unchanged for '?' and ':' because the catch-all rule already returns single-character tokens.
+
+Project 2 (assembler)
+- Collected .reserve and .constant directives into a data list during pass 1 so instruction addresses are computed without data.
+- Assigned data labels after pass 1 starting at instruction word count, then emitted data values after all instructions in pass 2.
+- Switched object output to plain text (entry point on the first line, then one integer per line).
+- Updated .start to accept a label and resolve it after symbols are complete.
+- Allowed iload/istore to take label operands for data addresses.
