@@ -18,6 +18,50 @@ sudo pacman -S --needed base-devel flex bison gcc
 yay -S python39
 ```
 
+## Makefile Commands
+Run these from the directory containing the Makefile (this folder).
+
+```bash
+make help
+```
+
+- `make help`: Print a short list of common targets + examples.
+- `make all`: Alias for `make build`.
+- `make build`: Build both programs (`assembler` and `deskcalc`).
+- `make asm` / `make assembler`: Build the assembler (outputs `./assembler`).
+- `make calc` / `make deskcalc`: Build the desk calculator (outputs `./deskcalc`).
+- `make env` / `make venv`: Create a Python 3.9 virtual environment (default: `.env/`).
+- `make run FILE=...`: Build + run the full pipeline for a `.calc` or `.asm` input.
+- `make sim OBJ=...`: Run the simulator on an existing `.obj` file.
+- `make test`: Run all tests (runs `calc-tests` + `asm-tests`).
+- `make calc-tests`: Run desk calculator tests (requires venv).
+- `make asm-tests`: Run assembler tests (requires venv; `test1` feeds input automatically).
+- `make clean`: Remove build artifacts and generated files.
+
+### Common examples
+```bash
+make build
+make venv
+make run FILE=test1.calc
+make run FILE=test2.asm
+make sim OBJ=test3.obj
+make test
+```
+
+### Variables you can override
+- `PYTHON` (default: `python3.9`): Interpreter used for `make venv`.
+- `VENV_DIR` (default: `.env`): Virtualenv path.
+- `SIM` (default: `simulator-yns-no-frills.pyc`): Simulator program.
+- `FILE`: Input to `make run` (must end in `.calc` or `.asm`).
+- `OBJ`: Input to `make sim` (path to a `.obj`).
+- `BUILD_ASM` / `BUILD_CALC`: Build directories used by `yacc`/`lex`.
+
+Example overrides:
+```bash
+make venv PYTHON=python3.9 VENV_DIR=.env
+make run FILE=test1.calc SIM=simulator-yns-no-frills.pyc
+```
+
 ## Folder Structure
 ```
 tree LAB-3/
