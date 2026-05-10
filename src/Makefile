@@ -7,6 +7,7 @@ SHELL := /bin/bash
 PYTHON ?= python3.9
 VENV_DIR ?= .env
 SIM ?= simulator-yns-no-frills.pyc
+PYENV_PY39 ?= $(HOME)/.pyenv/versions/3.9.18/bin/python
 
 BUILD_ASM ?= build_asm
 BUILD_CALC ?= build_calc
@@ -33,13 +34,26 @@ build: assembler deskcalc
 env: venv
 
 venv:
-	@command -v $(PYTHON) >/dev/null 2>&1 || { \
-	  echo "Missing interpreter: '$(PYTHON)'."; \
-	  echo "This project expects Python 3.9 for the provided simulator .pyc."; \
-	  echo "Install python3.9 or run: make venv PYTHON=python3.9"; \
+	@py="$(PYTHON)"; \
+	if [ "$(PYTHON)" = "python3.9" ] && [ -x "$(PYENV_PY39)" ]; then py="$(PYENV_PY39)"; fi; \
+	if [ ! -x "$$py" ] && ! command -v "$$py" >/dev/null 2>&1; then \
+	  if [ -x "$(PYENV_PY39)" ]; then py="$(PYENV_PY39)"; \
+	  elif command -v python3.9 >/dev/null 2>&1; then py=python3.9; \
+	  elif command -v python >/dev/null 2>&1; then py=python; fi; \
+	fi; \
+	if [ ! -x "$$py" ] && ! command -v "$$py" >/dev/null 2>&1; then \
+	  echo "Missing Python interpreter (tried '$(PYTHON)' and common fallbacks)."; \
+	  echo "This project needs Python 3.9.x to run simulator-yns-no-frills.pyc."; \
+	  echo "If you use pyenv: pyenv install 3.9.18 && pyenv local 3.9.18"; \
 	  exit 1; \
-	}
-	$(PYTHON) -m venv $(VENV_DIR)
+	fi; \
+	ver=$$("$$py" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")'); \
+	if [ "$$ver" != "3.9" ]; then \
+	  echo "Wrong Python version: $$py is Python $$ver (need 3.9.x)."; \
+	  echo "If you use pyenv: pyenv install 3.9.18 && pyenv local 3.9.18"; \
+	  exit 1; \
+	fi; \
+	"$$py" -m venv $(VENV_DIR)
 
 asm: assembler
 
@@ -69,14 +83,17 @@ deskcalc: desk-calc-project.l desk-calc-project.y
 	./assembler $< $@
 
 sim:
-	@if [ -z "${OBJ:-}" ]; then echo "Usage: make sim OBJ=path/to/file.obj"; exit 2; fi
+	@if [ -z "$(OBJ)" ]; then echo "Usage: make sim OBJ=path/to/file.obj"; exit 2; fi
 	@if [ ! -f "$(VENV_DIR)/bin/activate" ]; then echo "Missing $(VENV_DIR). Run 'make venv' first."; exit 1; fi
-	@$(VENV_DIR)/bin/python $(SIM) "$$OBJ"
+	@OBJ="$(OBJ)"; \
+	$(VENV_DIR)/bin/python $(SIM) "$$OBJ"
 
 run: build
-	@if [ -z "${FILE:-}" ]; then echo "Usage: make run FILE=path/to/input.calc|input.asm"; exit 2; fi
+	@if [ -z "$(FILE)" ]; then echo "Usage: make run FILE=path/to/input.calc|input.asm"; exit 2; fi
+	@if [ ! -f "$(FILE)" ]; then echo "Missing input file: $(FILE)"; exit 2; fi
 	@if [ ! -f "$(VENV_DIR)/bin/activate" ]; then echo "Missing $(VENV_DIR). Run 'make venv' first."; exit 1; fi
-	@base="$$(basename "$$FILE")"; base="$${base%.*}"; \
+	@FILE="$(FILE)"; \
+	base="$$(basename "$$FILE")"; base="$${base%.*}"; \
 	case "$$FILE" in \
 	  *.calc) \
 	    ./deskcalc < "$$FILE" > "$$base.calc.asm"; \

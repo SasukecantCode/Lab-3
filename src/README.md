@@ -10,13 +10,29 @@ The object format stays plain text with one integer per line.
 - gcc
 - flex
 - bison
-- python3.9
+- Python 3.9.x (recommended: 3.9.18 via pyenv)
 
 Commands to install on Arch Linux:
 ```bash
 sudo pacman -S --needed base-devel flex bison gcc
 yay -S python39
 ```
+
+## Recommended Python setup (pyenv)
+The simulator file is `simulator-yns-no-frills.pyc`, and it expects **Python 3.9.x**.
+
+If you use `pyenv`, this repo already includes a `.python-version` file set to `3.9.18`.
+From this folder:
+
+```bash
+pyenv install 3.9.18
+pyenv local 3.9.18
+make venv PYTHON=python
+```
+
+If you run the simulator with the wrong Python version, you may see an error like:
+`RuntimeError: Bad magic number in .pyc file`
+That just means “wrong Python version”; switch to Python 3.9.18 and try again.
 
 ## Makefile Commands
 Run these from the directory containing the Makefile (this folder).
