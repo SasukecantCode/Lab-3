@@ -7,6 +7,7 @@ SHELL := /bin/bash
 PYTHON ?= python3.9
 VENV_DIR ?= .env
 SIM ?= simulator-yns-no-frills.pyc
+SIM_WRAPPER ?= sim_wrapper.py
 PYENV_PY39 ?= $(HOME)/.pyenv/versions/3.9.18/bin/python
 
 BUILD_ASM ?= build_asm
@@ -86,7 +87,7 @@ sim:
 	@if [ -z "$(OBJ)" ]; then echo "Usage: make sim OBJ=path/to/file.obj"; exit 2; fi
 	@if [ ! -f "$(VENV_DIR)/bin/activate" ]; then echo "Missing $(VENV_DIR). Run 'make venv' first."; exit 1; fi
 	@OBJ="$(OBJ)"; \
-	$(VENV_DIR)/bin/python $(SIM) "$$OBJ"
+	$(VENV_DIR)/bin/python $(SIM_WRAPPER) $(SIM) "$$OBJ"
 
 run: build
 	@if [ -z "$(FILE)" ]; then echo "Usage: make run FILE=path/to/input.calc|input.asm"; exit 2; fi
@@ -98,10 +99,10 @@ run: build
 	  *.calc) \
 	    ./deskcalc < "$$FILE" > "$$base.calc.asm"; \
 	    ./assembler "$$base.calc.asm" "$$base.calc.obj"; \
-	    $(VENV_DIR)/bin/python $(SIM) "$$base.calc.obj" ;; \
+	    $(VENV_DIR)/bin/python $(SIM_WRAPPER) $(SIM) "$$base.calc.obj" ;; \
 	  *.asm) \
 	    ./assembler "$$FILE" "$$base.asm.obj"; \
-	    $(VENV_DIR)/bin/python $(SIM) "$$base.asm.obj" ;; \
+	    $(VENV_DIR)/bin/python $(SIM_WRAPPER) $(SIM) "$$base.asm.obj" ;; \
 	  *) \
 	    echo "Unknown input type: $$FILE (expected .calc or .asm)"; exit 2 ;; \
 	esac
@@ -117,7 +118,7 @@ calc-tests: build
 	  ./deskcalc < "$$in" > "$$asm"; \
 	  ./assembler "$$asm" "$$obj"; \
 	  exp=""; \
-	  out=$$($(VENV_DIR)/bin/python $(SIM) "$$obj" | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
+	  out=$$($(VENV_DIR)/bin/python $(SIM_WRAPPER) $(SIM) "$$obj" | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
 	  case $$t in \
 	    1) exp="100" ;; \
 	    2) exp="200" ;; \
@@ -133,15 +134,15 @@ asm-tests: build
 	@pass=0; fail=0; \
 	echo "== asm test1 (requires input) =="; \
 	./assembler test1.asm test1.obj; \
-	out=$$(printf "3\n1\n2\n3\n" | $(VENV_DIR)/bin/python $(SIM) test1.obj | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
+	out=$$(printf "3\n1\n2\n3\n" | $(VENV_DIR)/bin/python $(SIM_WRAPPER) $(SIM) test1.obj | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
 	if [ "$$out" = "16" ]; then echo "PASS: asm test1"; pass=$$((pass+1)); else echo "FAIL: asm test1 (got '$$out', expected '16')"; fail=$$((fail+1)); fi; \
 	echo "== asm test2 =="; \
 	./assembler test2.asm test2.obj; \
-	out=$$($(VENV_DIR)/bin/python $(SIM) test2.obj | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
+	out=$$($(VENV_DIR)/bin/python $(SIM_WRAPPER) $(SIM) test2.obj | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
 	if [ "$$out" = "8" ]; then echo "PASS: asm test2"; pass=$$((pass+1)); else echo "FAIL: asm test2 (got '$$out', expected '8')"; fail=$$((fail+1)); fi; \
 	echo "== asm test3 =="; \
 	./assembler test3.asm test3.obj; \
-	out=$$($(VENV_DIR)/bin/python $(SIM) test3.obj | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
+	out=$$($(VENV_DIR)/bin/python $(SIM_WRAPPER) $(SIM) test3.obj | tr -d '\r' | sed -E 's/Enter integer:[[:space:]]*//g' | sed -E 's/^[[:space:]]+|[[:space:]]+$$//g' | grep -E '^-?[0-9]+$$' | tail -n 1 || true); \
 	if [ "$$out" = "14" ]; then echo "PASS: asm test3"; pass=$$((pass+1)); else echo "FAIL: asm test3 (got '$$out', expected '14')"; fail=$$((fail+1)); fi; \
 	echo "Asm Passed: $$pass, Failed: $$fail"; \
 	if [ $$fail -ne 0 ]; then exit 1; fi

@@ -91,6 +91,14 @@ int code[1000];
 int code_size = 0;
 int instr_count = 0;  /* instruction words only (no data) */
 
+/* -------- Relocation Table (NEW) --------
+ * Offsets (word indexes) within the object code that contain addresses.
+ * The loader/simulator can add a base address to these words when loading.
+ * Example from spec: istore/iload/jsr/if* label operands are relocatable.
+ */
+int reloc_offsets[1000];
+int reloc_count = 0;
+
 /* -------- Data Segment -------- */
 
 typedef struct {
@@ -172,9 +180,27 @@ void emit(int value) {
     code[pc++] = value;
 }
 
+/* Record that the *next* emitted word (current pc) is an address that must be relocated. */
+void mark_reloc_here(void) {
+    if(reloc_count >= 1000) {
+        printf("Too many relocation entries\n");
+        exit(1);
+    }
+    reloc_offsets[reloc_count++] = pc;
+}
+
 void write_output(char* filename) {
     FILE* f = fopen(filename,"w");
+    /* NEW object format (per assignment spec):
+     *  <entry point offset>
+     *  <relocation table length>
+     *  <relocation offsets... one per line>
+     *  <object code words... one per line>
+     */
     fprintf(f, "%d\n", entry_point);
+    fprintf(f, "%d\n", reloc_count);
+    for(int i=0; i<reloc_count; i++)
+        fprintf(f, "%d\n", reloc_offsets[i]);
     for(int i=0; i<code_size; i++)
         fprintf(f, "%d\n", code[i]);
     fclose(f);
@@ -185,7 +211,7 @@ void reset() {
 }
 
 
-#line 189 "y.tab.c"
+#line 215 "y.tab.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -288,12 +314,12 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 119 "ass.y"
+#line 145 "ass.y"
 
     int num;
     char* str;
 
-#line 297 "y.tab.c"
+#line 323 "y.tab.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -739,10 +765,10 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   133,   133,   137,   138,   142,   143,   144,   145,   146,
-     147,   151,   151,   155,   163,   170,   177,   184,   185,   185,
-     189,   197,   209,   215,   221,   227,   233,   239,   245,   251,
-     257,   263,   269,   275,   281,   287,   293,   299,   305
+       0,   159,   159,   163,   164,   168,   169,   170,   171,   172,
+     173,   177,   177,   181,   189,   196,   203,   210,   211,   211,
+     215,   223,   235,   241,   247,   258,   264,   275,   281,   287,
+     293,   299,   310,   321,   332,   343,   349,   355,   361
 };
 #endif
 
@@ -1338,58 +1364,58 @@ yyreduce:
   switch (yyn)
     {
   case 11: /* $@1: %empty  */
-#line 151 "ass.y"
+#line 177 "ass.y"
           { if(pass==1) insert_symbol((yyvsp[0].str), instr_count); }
-#line 1344 "y.tab.c"
+#line 1370 "y.tab.c"
     break;
 
   case 13: /* label_def: LABEL  */
-#line 156 "ass.y"
+#line 182 "ass.y"
     {
         if(pass==1)
             insert_symbol((yyvsp[0].str), instr_count);
     }
-#line 1353 "y.tab.c"
+#line 1379 "y.tab.c"
     break;
 
   case 14: /* directive: START IDENTIFIER  */
-#line 164 "ass.y"
+#line 190 "ass.y"
     {
         if(pass==1) {
             strcpy(entry_label, (yyvsp[0].str));
             entry_label_set = 1;
         }
     }
-#line 1364 "y.tab.c"
+#line 1390 "y.tab.c"
     break;
 
   case 15: /* directive: START NUMBER  */
-#line 171 "ass.y"
+#line 197 "ass.y"
     {
         if(pass==1) {
             entry_point = (yyvsp[0].num); /* allow numeric entry point */
             entry_label_set = 0;
         }
     }
-#line 1375 "y.tab.c"
+#line 1401 "y.tab.c"
     break;
 
   case 16: /* directive: END  */
-#line 178 "ass.y"
+#line 204 "ass.y"
     {
         /* .end is a no-op for this assembler */
     }
-#line 1383 "y.tab.c"
+#line 1409 "y.tab.c"
     break;
 
   case 18: /* $@2: %empty  */
-#line 185 "ass.y"
+#line 211 "ass.y"
             { strcpy(data_label_buf, (yyvsp[0].str)); data_label_set = 1; }
-#line 1389 "y.tab.c"
+#line 1415 "y.tab.c"
     break;
 
   case 20: /* data_directive: CONSTANT NUMBER  */
-#line 190 "ass.y"
+#line 216 "ass.y"
         {
             if(pass==1) {
                 const char* label = (data_label_set ? data_label_buf : "");
@@ -1397,11 +1423,11 @@ yyreduce:
                 data_label_set = 0;
             }
         }
-#line 1401 "y.tab.c"
+#line 1427 "y.tab.c"
     break;
 
   case 21: /* data_directive: RESERVE NUMBER  */
-#line 198 "ass.y"
+#line 224 "ass.y"
         {
             if(pass==1) {
                 const char* label = (data_label_set ? data_label_buf : "");
@@ -1409,164 +1435,194 @@ yyreduce:
                 data_label_set = 0;
             }
         }
-#line 1413 "y.tab.c"
+#line 1439 "y.tab.c"
     break;
 
   case 22: /* instruction: LDC NUMBER  */
-#line 210 "ass.y"
+#line 236 "ass.y"
         {
                         if(pass==1) instr_count+=2;
             else { emit(1); emit((yyvsp[0].num)); }
         }
-#line 1422 "y.tab.c"
+#line 1448 "y.tab.c"
     break;
 
   case 23: /* instruction: ILOAD NUMBER  */
-#line 216 "ass.y"
+#line 242 "ass.y"
         {
             if(pass==1) instr_count+=2;
             else { emit(2); emit((yyvsp[0].num)); }
         }
-#line 1431 "y.tab.c"
+#line 1457 "y.tab.c"
     break;
 
   case 24: /* instruction: ILOAD IDENTIFIER  */
-#line 222 "ass.y"
+#line 248 "ass.y"
         {
             if(pass==1) instr_count+=2;
-            else { emit(2); emit(lookup_symbol((yyvsp[0].str))); }
+            else {
+                emit(2);
+                /* NEW: label address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol((yyvsp[0].str)));
+            }
         }
-#line 1440 "y.tab.c"
+#line 1471 "y.tab.c"
     break;
 
   case 25: /* instruction: ISTORE NUMBER  */
-#line 228 "ass.y"
+#line 259 "ass.y"
         {
             if(pass==1) instr_count+=2;
             else { emit(3); emit((yyvsp[0].num)); }
         }
-#line 1449 "y.tab.c"
+#line 1480 "y.tab.c"
     break;
 
   case 26: /* instruction: ISTORE IDENTIFIER  */
-#line 234 "ass.y"
+#line 265 "ass.y"
         {
             if(pass==1) instr_count+=2;
-            else { emit(3); emit(lookup_symbol((yyvsp[0].str))); }
-        }
-#line 1458 "y.tab.c"
-    break;
-
-  case 27: /* instruction: IADD  */
-#line 240 "ass.y"
-        {
-            if(pass==1) instr_count+=1;
-            else emit(4);
-        }
-#line 1467 "y.tab.c"
-    break;
-
-  case 28: /* instruction: IMUL  */
-#line 246 "ass.y"
-        {
-            if(pass==1) instr_count+=1;
-            else emit(5);
-        }
-#line 1476 "y.tab.c"
-    break;
-
-  case 29: /* instruction: IDIV  */
-#line 252 "ass.y"
-        {
-            if(pass==1) instr_count+=1;
-            else emit(6);
-        }
-#line 1485 "y.tab.c"
-    break;
-
-  case 30: /* instruction: ISUB  */
-#line 258 "ass.y"
-        {
-            if(pass==1) instr_count+=1;
-            else emit(7);
+            else {
+                emit(3);
+                /* NEW: label address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol((yyvsp[0].str)));
+            }
         }
 #line 1494 "y.tab.c"
     break;
 
-  case 31: /* instruction: IFEQ IDENTIFIER  */
-#line 264 "ass.y"
+  case 27: /* instruction: IADD  */
+#line 276 "ass.y"
         {
-            if(pass==1) instr_count+=2;
-            else { emit(8); emit(lookup_symbol((yyvsp[0].str))); }
+            if(pass==1) instr_count+=1;
+            else emit(4);
         }
 #line 1503 "y.tab.c"
     break;
 
-  case 32: /* instruction: IFGT IDENTIFIER  */
-#line 270 "ass.y"
+  case 28: /* instruction: IMUL  */
+#line 282 "ass.y"
         {
-            if(pass==1) instr_count+=2;
-            else { emit(9); emit(lookup_symbol((yyvsp[0].str))); }
+            if(pass==1) instr_count+=1;
+            else emit(5);
         }
 #line 1512 "y.tab.c"
     break;
 
-  case 33: /* instruction: IFLT IDENTIFIER  */
-#line 276 "ass.y"
+  case 29: /* instruction: IDIV  */
+#line 288 "ass.y"
         {
-            if(pass==1) instr_count+=2;
-            else { emit(10); emit(lookup_symbol((yyvsp[0].str))); }
+            if(pass==1) instr_count+=1;
+            else emit(6);
         }
 #line 1521 "y.tab.c"
     break;
 
-  case 34: /* instruction: JSR IDENTIFIER  */
-#line 282 "ass.y"
+  case 30: /* instruction: ISUB  */
+#line 294 "ass.y"
         {
-            if(pass==1) instr_count+=2;
-            else { emit(11); emit(lookup_symbol((yyvsp[0].str))); }
+            if(pass==1) instr_count+=1;
+            else emit(7);
         }
 #line 1530 "y.tab.c"
     break;
 
+  case 31: /* instruction: IFEQ IDENTIFIER  */
+#line 300 "ass.y"
+        {
+            if(pass==1) instr_count+=2;
+            else {
+                emit(8);
+                /* NEW: jump target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol((yyvsp[0].str)));
+            }
+        }
+#line 1544 "y.tab.c"
+    break;
+
+  case 32: /* instruction: IFGT IDENTIFIER  */
+#line 311 "ass.y"
+        {
+            if(pass==1) instr_count+=2;
+            else {
+                emit(9);
+                /* NEW: jump target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol((yyvsp[0].str)));
+            }
+        }
+#line 1558 "y.tab.c"
+    break;
+
+  case 33: /* instruction: IFLT IDENTIFIER  */
+#line 322 "ass.y"
+        {
+            if(pass==1) instr_count+=2;
+            else {
+                emit(10);
+                /* NEW: jump target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol((yyvsp[0].str)));
+            }
+        }
+#line 1572 "y.tab.c"
+    break;
+
+  case 34: /* instruction: JSR IDENTIFIER  */
+#line 333 "ass.y"
+        {
+            if(pass==1) instr_count+=2;
+            else {
+                emit(11);
+                /* NEW: call target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol((yyvsp[0].str)));
+            }
+        }
+#line 1586 "y.tab.c"
+    break;
+
   case 35: /* instruction: RET  */
-#line 288 "ass.y"
+#line 344 "ass.y"
         {
             if(pass==1) instr_count+=1;
             else emit(12);
         }
-#line 1539 "y.tab.c"
+#line 1595 "y.tab.c"
     break;
 
   case 36: /* instruction: READ  */
-#line 294 "ass.y"
+#line 350 "ass.y"
         {
             if(pass==1) instr_count+=1;
             else emit(13);
         }
-#line 1548 "y.tab.c"
+#line 1604 "y.tab.c"
     break;
 
   case 37: /* instruction: PRINT  */
-#line 300 "ass.y"
+#line 356 "ass.y"
         {
             if(pass==1) instr_count+=1;
             else emit(14);
         }
-#line 1557 "y.tab.c"
+#line 1613 "y.tab.c"
     break;
 
   case 38: /* instruction: HALT  */
-#line 306 "ass.y"
+#line 362 "ass.y"
         {
             if(pass==1) instr_count+=1;
             else emit(15);
         }
-#line 1566 "y.tab.c"
+#line 1622 "y.tab.c"
     break;
 
 
-#line 1570 "y.tab.c"
+#line 1626 "y.tab.c"
 
       default: break;
     }
@@ -1759,7 +1815,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 312 "ass.y"
+#line 368 "ass.y"
 
 
 //int yywrap(){return 1;}
@@ -1794,6 +1850,7 @@ int main(int argc, char* argv[]) {
     yyin = fopen(argv[1],"r");
     pass = 2;
     pc = 0;
+    reloc_count = 0; /* NEW: clear relocation table before emitting */
     yyparse();
     fclose(yyin);
 

@@ -21,6 +21,14 @@ int code[1000];
 int code_size = 0;
 int instr_count = 0;  /* instruction words only (no data) */
 
+/* -------- Relocation Table (NEW) --------
+ * Offsets (word indexes) within the object code that contain addresses.
+ * The loader/simulator can add a base address to these words when loading.
+ * Example from spec: istore/iload/jsr/if* label operands are relocatable.
+ */
+int reloc_offsets[1000];
+int reloc_count = 0;
+
 /* -------- Data Segment -------- */
 
 typedef struct {
@@ -102,9 +110,27 @@ void emit(int value) {
     code[pc++] = value;
 }
 
+/* Record that the *next* emitted word (current pc) is an address that must be relocated. */
+void mark_reloc_here(void) {
+    if(reloc_count >= 1000) {
+        printf("Too many relocation entries\n");
+        exit(1);
+    }
+    reloc_offsets[reloc_count++] = pc;
+}
+
 void write_output(char* filename) {
     FILE* f = fopen(filename,"w");
+    /* NEW object format (per assignment spec):
+     *  <entry point offset>
+     *  <relocation table length>
+     *  <relocation offsets... one per line>
+     *  <object code words... one per line>
+     */
     fprintf(f, "%d\n", entry_point);
+    fprintf(f, "%d\n", reloc_count);
+    for(int i=0; i<reloc_count; i++)
+        fprintf(f, "%d\n", reloc_offsets[i]);
     for(int i=0; i<code_size; i++)
         fprintf(f, "%d\n", code[i]);
     fclose(f);
@@ -221,7 +247,12 @@ instruction:
     | ILOAD IDENTIFIER
         {
             if(pass==1) instr_count+=2;
-            else { emit(2); emit(lookup_symbol($2)); }
+            else {
+                emit(2);
+                /* NEW: label address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol($2));
+            }
         }
 
     | ISTORE NUMBER
@@ -233,7 +264,12 @@ instruction:
     | ISTORE IDENTIFIER
         {
             if(pass==1) instr_count+=2;
-            else { emit(3); emit(lookup_symbol($2)); }
+            else {
+                emit(3);
+                /* NEW: label address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol($2));
+            }
         }
 
     | IADD
@@ -263,25 +299,45 @@ instruction:
     | IFEQ IDENTIFIER
         {
             if(pass==1) instr_count+=2;
-            else { emit(8); emit(lookup_symbol($2)); }
+            else {
+                emit(8);
+                /* NEW: jump target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol($2));
+            }
         }
 
     | IFGT IDENTIFIER
         {
             if(pass==1) instr_count+=2;
-            else { emit(9); emit(lookup_symbol($2)); }
+            else {
+                emit(9);
+                /* NEW: jump target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol($2));
+            }
         }
 
     | IFLT IDENTIFIER
         {
             if(pass==1) instr_count+=2;
-            else { emit(10); emit(lookup_symbol($2)); }
+            else {
+                emit(10);
+                /* NEW: jump target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol($2));
+            }
         }
 
     | JSR IDENTIFIER
         {
             if(pass==1) instr_count+=2;
-            else { emit(11); emit(lookup_symbol($2)); }
+            else {
+                emit(11);
+                /* NEW: call target address operand needs relocation */
+                mark_reloc_here();
+                emit(lookup_symbol($2));
+            }
         }
 
     | RET
@@ -343,6 +399,7 @@ int main(int argc, char* argv[]) {
     yyin = fopen(argv[1],"r");
     pass = 2;
     pc = 0;
+    reloc_count = 0; /* NEW: clear relocation table before emitting */
     yyparse();
     fclose(yyin);
 
